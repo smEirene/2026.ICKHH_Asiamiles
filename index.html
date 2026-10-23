@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>亞洲萬里通里數試算</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f1ec;
+    --surface: #ffffff;
+    --ink: #1c2433;
+    --muted: #5d6676;
+    --line: #d9d5cb;
+    --accent: #7a5a2b;
+    --accent-ink: #ffffff;
+    --result-bg: #1c2433;
+    --result-ink: #f6f2e8;
+    --result-muted: #b9bfcc;
+    --warn-bg: #fbeadf;
+    --warn-ink: #7a3511;
+    --ok-ink: #2f6b4f;
+    --focus: #b8862f;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121722;
+      --surface: #1b2230;
+      --ink: #eee9dd;
+      --muted: #a2abbb;
+      --line: #323b4d;
+      --accent: #d3a95f;
+      --accent-ink: #1b1608;
+      --result-bg: #0b0f17;
+      --result-ink: #f6f2e8;
+      --result-muted: #98a1b3;
+      --warn-bg: #3a2418;
+      --warn-ink: #f3c7a6;
+      --ok-ink: #86c9a8;
+      --focus: #d3a95f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121722;
+    --surface: #1b2230;
+    --ink: #eee9dd;
+    --muted: #a2abbb;
+    --line: #323b4d;
+    --accent: #d3a95f;
+    --accent-ink: #1b1608;
+    --result-bg: #0b0f17;
+    --result-ink: #f6f2e8;
+    --result-muted: #98a1b3;
+    --warn-bg: #3a2418;
+    --warn-ink: #f3c7a6;
+    --ok-ink: #86c9a8;
+    --focus: #d3a95f;
+    color-scheme: dark;
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 24px 18px 40px; }
+
+  header h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; font-weight: 700; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  .result {
+    margin-top: 20px;
+    background: var(--result-bg);
+    color: var(--result-ink);
+    border-radius: 14px;
+    padding: 22px 20px 18px;
+  }
+  .result .label { font-size: 14px; color: var(--result-muted); margin: 0; }
+  .result .miles {
+    display: flex; align-items: baseline; gap: 8px;
+    margin: 2px 0 6px;
+  }
+  .result .num {
+    font-size: 64px; line-height: 1.1; font-weight: 700;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  }
+  .result .unit { font-size: 22px; font-weight: 500; color: var(--result-muted); }
+  .result .calc { margin: 0; font-size: 14px; color: var(--result-muted); font-variant-numeric: tabular-nums; }
+  .result .note { margin: 10px 0 0; font-size: 14px; color: var(--accent); }
+  :root[data-theme="dark"] .result .note { color: #e2bd78; }
+  .result.empty .num { color: var(--result-muted); }
+
+  .alert {
+    margin-top: 12px;
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .alert[hidden] { display: none; }
+  .alert strong { display: block; margin-bottom: 2px; }
+
+  .card {
+    margin-top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .field + .field { margin-top: 16px; }
+  label.t { display: block; font-weight: 500; margin-bottom: 2px; }
+  .hint { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .input {
+    display: flex; align-items: center;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    padding: 0 14px;
+  }
+  .input:focus-within { border-color: var(--focus); outline: 3px solid color-mix(in srgb, var(--focus) 30%, transparent); }
+  .input span { color: var(--muted); font-weight: 500; margin-right: 8px; }
+  .input input {
+    flex: 1; min-width: 0;
+    border: 0; background: transparent; color: var(--ink);
+    font: inherit; font-size: 22px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    padding: 12px 0;
+    outline: none;
+  }
+
+  fieldset { border: 0; margin: 18px 0 0; padding: 0; }
+  legend { font-weight: 500; padding: 0; margin-bottom: 2px; }
+  .check {
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px 2px;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+  }
+  fieldset .check:first-of-type { border-top: 0; }
+  .check input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+  .check input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .reminders { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
+  .reminders li + li { margin-top: 4px; }
+  .reminders mark {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    color: var(--ink);
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 8px; font-weight: 700; }
+
+  .actions { margin-top: 16px; display: flex; gap: 10px; }
+  button {
+    font: inherit; font-weight: 500;
+    border-radius: 10px; padding: 12px 18px; cursor: pointer;
+    border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); }
+  footer p { margin: 0 0 4px; }
+
+  @media (max-width: 380px) {
+    .result .num { font-size: 54px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>亞洲萬里通里數試算</h1>
+    <p>輸入結帳金額，即時查看這一筆可累積的里數。</p>
+  </header>
+
+  <section class="result empty" id="result" aria-live="polite">
+    <p class="label">這一筆可累積</p>
+    <div class="miles"><span class="num" id="miles">0</span><span class="unit">里</span></div>
+    <p class="calc" id="calc">請輸入帳單金額</p>
+    <p class="note" id="note" hidden></p>
+  </section>
+
+  <div class="alert" id="alert" hidden role="alert"></div>
+
+  <section class="card">
+    <div class="field">
+      <label class="t" for="total">餐飲消費金額</label>
+      <span class="hint" id="totalHint">請輸入不含服務費、稅金及小費的金額；IHG 會員請輸入折扣後金額。</span>
+      <div class="input"><span>NT$</span><input id="total" type="text" inputmode="numeric" autocomplete="off" aria-describedby="totalHint" placeholder="0"></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="reset">清除，算下一筆</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>結帳前請確認</h2>
+    <ol class="reminders">
+      <li>請客人在結帳時出示國泰會員卡，離開餐廳後無法補登里數。</li>
+      <li>確認是持卡人本人；每筆交易限一位會員累積，同桌用餐不接受分開結帳。</li>
+      <li>確認這一筆不是節日推廣餐膳、其他推廣或套餐，這些消費不可併用里數。</li>
+      <li><mark>服務費、稅金及小費不計入里數；每筆交易最高累積 5,000 里。</mark></li>
+      <li>IHG® One Rewards 會員只能擇一累積 Dining Rewards 點數或亞洲萬里通里數。</li>
+      <li>里數將於餐膳交易後 10 個工作天內存入會員帳戶；入點後無法取消、更正或轉換，入點前請與客人再次確認卡號。</li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>每消費 NT$30 累積 1 里，每筆上限 5,000 里。不滿 NT$30 的零頭不累積（暫定，待國泰確認）。</p>
+    <p>此頁僅供現場試算，不會儲存任何資料；實際入點里數以 Ocard 系統及國泰確認為準。</p>
+  </footer>
+</div>
+
+<script>
+  // 規則參數：條款確認後只需修改這裡
+  var RATE = 30;     // 每消費 NT$30 累積 1 里
+  var CAP = 5000;    // 每筆交易上限（里）
+
+  var $ = function (id) { return document.getElementById(id); };
+  var totalEl = $('total');
+  var resultEl = $('result'), milesEl = $('miles'), calcEl = $('calc'), noteEl = $('note'), alertEl = $('alert');
+  var fmt = new Intl.NumberFormat('en-US');
+
+  function toNum(s) {
+    var d = String(s).replace(/[^0-9]/g, '');
+    return d === '' ? null : parseInt(d, 10);
+  }
+  function formatInput(el) {
+    var n = toNum(el.value);
+    el.value = n === null ? '' : fmt.format(n);
+  }
+  function showAlert(title, body) {
+    alertEl.innerHTML = '<strong></strong><span></span>';
+    alertEl.firstChild.textContent = title;
+    alertEl.lastChild.textContent = body;
+    alertEl.hidden = false;
+  }
+
+  function update() {
+    var total = toNum(totalEl.value);
+
+    alertEl.hidden = true;
+    noteEl.hidden = true;
+    resultEl.classList.remove('empty');
+
+    if (total === null) {
+      resultEl.classList.add('empty');
+      milesEl.textContent = '0';
+      calcEl.textContent = '請輸入帳單金額';
+      return;
+    }
+
+    var base = total;
+    var raw = Math.floor(base / RATE);
+    var miles = Math.min(raw, CAP);
+    var rest = base - raw * RATE;
+
+    milesEl.textContent = fmt.format(miles);
+    calcEl.textContent = 'NT$' + fmt.format(base) + ' ÷ ' + RATE + ' = ' + fmt.format(raw) + ' 里（零頭 NT$' + rest + ' 不累積）';
+
+    if (raw > CAP) {
+      noteEl.textContent = '已達每筆上限 ' + fmt.format(CAP) + ' 里，超出的 ' + fmt.format(raw - CAP) + ' 里不累積。';
+      noteEl.hidden = false;
+    } else if (base < RATE) {
+      noteEl.textContent = '計入金額未滿 NT$' + RATE + '，這一筆沒有里數。';
+      noteEl.hidden = false;
+    }
+  }
+
+  totalEl.addEventListener('input', function () { formatInput(totalEl); update(); });
+  $('reset').addEventListener('click', function () {
+    totalEl.value = '';
+    update();
+    totalEl.focus();
+  });
+  update();
+</script>
+</body>
+</html>
