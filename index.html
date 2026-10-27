@@ -127,6 +127,8 @@
   .field + .field { margin-top: 16px; }
   label.t { display: block; font-weight: 500; margin-bottom: 2px; }
   .hint { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .en { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .hint .en { display: block; font-size: 12.5px; }
   .input {
     display: flex; align-items: center;
     border: 1.5px solid var(--line);
@@ -206,14 +208,20 @@
   <section class="card">
     <div class="field">
       <label class="t" for="total">餐飲消費金額（含稅）</label>
-      <span class="hint" id="totalHint">請輸入菜單金額合計（含 5% 營業稅），不含服務費及小費。</span>
+      <span class="hint" id="totalHint">請輸入結帳金額（含 5% 營業稅），不含服務費；若含小費，請在下方填入小費。</span>
       <div class="input"><span>NT$</span><input id="total" type="text" inputmode="numeric" autocomplete="off" aria-describedby="totalHint" placeholder="0"></div>
     </div>
 
     <div class="field">
-      <label class="t" for="discount">折扣金額</label>
-      <span class="hint" id="discountHint">如 IHG 會員餐飲折扣，請輸入折扣的金額；沒有就留空。</span>
+      <label class="t" for="discount">折扣金額 <span class="en">Discount amount</span></label>
+      <span class="hint" id="discountHint">如 IHG 會員餐飲折扣、餐飲折扣，請輸入折扣的金額；沒有就留空。<span class="en">Enter the discount amount, such as the IHG member dining discount or any F&amp;B discount. Leave blank if none.</span></span>
       <div class="input"><span>NT$</span><input id="discount" type="text" inputmode="numeric" autocomplete="off" aria-describedby="discountHint" placeholder="0"></div>
+    </div>
+
+    <div class="field">
+      <label class="t" for="tip">小費</label>
+      <span class="hint" id="tipHint">小費不計入里數，請依實際金額填入；沒有就留空。</span>
+      <div class="input"><span>NT$</span><input id="tip" type="text" inputmode="numeric" autocomplete="off" aria-describedby="tipHint" placeholder="0"></div>
     </div>
 
     <div class="actions">
@@ -235,7 +243,7 @@
   </section>
 
   <footer>
-    <p>里數 ＝ （餐飲消費金額 − 折扣金額）÷ 1.05 ÷ 30，每筆上限 5,000 里。未稅金額與零頭的進位方式為暫定，待財務及國泰確認。</p>
+    <p>里數 ＝ （餐飲消費金額 − 折扣金額 − 小費）÷ 1.05 ÷ 30，每筆上限 5,000 里。未稅金額與零頭的進位方式為暫定，待財務及國泰確認。</p>
     <p>此頁僅供現場試算，不會儲存任何資料；實際入點里數以 Ocard 系統及國泰確認為準。</p>
   </footer>
 </div>
@@ -247,7 +255,7 @@
   var TAX = 0.05;    // 營業稅 5%（含稅價 ÷ 1.05 ＝ 未稅金額）
 
   var $ = function (id) { return document.getElementById(id); };
-  var totalEl = $('total'), discountEl = $('discount');
+  var totalEl = $('total'), discountEl = $('discount'), tipEl = $('tip');
   var resultEl = $('result'), milesEl = $('miles'), calcEl = $('calc'), noteEl = $('note'), alertEl = $('alert');
   var fmt = new Intl.NumberFormat('en-US');
 
@@ -269,6 +277,7 @@
   function update() {
     var total = toNum(totalEl.value);
     var discount = toNum(discountEl.value) || 0;
+    var tip = toNum(tipEl.value) || 0;
 
     alertEl.hidden = true;
     noteEl.hidden = true;
@@ -281,15 +290,15 @@
       return;
     }
 
-    if (discount > total) {
+    if (discount + tip > total) {
       resultEl.classList.add('empty');
       milesEl.textContent = '0';
       calcEl.textContent = '請檢查金額';
-      showAlert('折扣金額大於消費金額', '折扣金額不應超過餐飲消費金額，請重新確認。');
+      showAlert('折扣與小費合計大於消費金額', '折扣金額加小費不應超過消費金額，請重新確認。');
       return;
     }
 
-    var afterDiscount = total - discount;
+    var afterDiscount = total - discount - tip;
     var base = Math.round(afterDiscount / (1 + TAX));
     var raw = Math.floor(base / RATE);
     var miles = Math.min(raw, CAP);
@@ -297,7 +306,12 @@
 
     milesEl.textContent = fmt.format(miles);
     var lines = [];
-    if (discount > 0) { lines.push('NT$' + fmt.format(total) + ' − 折扣 NT$' + fmt.format(discount) + ' = NT$' + fmt.format(afterDiscount)); }
+    if (discount > 0 || tip > 0) {
+      var s1 = 'NT$' + fmt.format(total);
+      if (discount > 0) { s1 += ' − 折扣 NT$' + fmt.format(discount); }
+      if (tip > 0) { s1 += ' − 小費 NT$' + fmt.format(tip); }
+      lines.push(s1 + ' = NT$' + fmt.format(afterDiscount));
+    }
     lines.push('NT$' + fmt.format(afterDiscount) + ' ÷ 1.05 = NT$' + fmt.format(base) + '（未稅）');
     lines.push('NT$' + fmt.format(base) + ' ÷ ' + RATE + ' = ' + fmt.format(raw) + ' 里（零頭 NT$' + rest + ' 不累積）');
     calcEl.textContent = lines.join('\n');
@@ -311,11 +325,11 @@
     }
   }
 
-  [totalEl, discountEl].forEach(function (el) {
+  [totalEl, discountEl, tipEl].forEach(function (el) {
     el.addEventListener('input', function () { formatInput(el); update(); });
   });
   $('reset').addEventListener('click', function () {
-    totalEl.value = ''; discountEl.value = '';
+    totalEl.value = ''; discountEl.value = ''; tipEl.value = '';
     update();
     totalEl.focus();
   });
