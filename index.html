@@ -103,6 +103,7 @@
   .result .calc { margin: 0; font-size: 14px; color: var(--result-muted); font-variant-numeric: tabular-nums; }
   .result .note { margin: 10px 0 0; font-size: 14px; color: var(--accent); }
   :root[data-theme="dark"] .result .note { color: #e2bd78; }
+  .result .calc { white-space: pre-line; line-height: 1.7; }
   .result.empty .num { color: var(--result-muted); }
 
   .alert {
@@ -196,7 +197,7 @@
   <section class="result empty" id="result" aria-live="polite">
     <p class="label">這一筆可累積</p>
     <div class="miles"><span class="num" id="miles">0</span><span class="unit">里</span></div>
-    <p class="calc" id="calc">請輸入帳單金額</p>
+    <p class="calc" id="calc">請輸入餐飲消費金額</p>
     <p class="note" id="note" hidden></p>
   </section>
 
@@ -204,9 +205,15 @@
 
   <section class="card">
     <div class="field">
-      <label class="t" for="total">餐飲消費金額</label>
-      <span class="hint" id="totalHint">請輸入不含服務費、稅金及小費的金額；IHG 會員請輸入折扣後金額。</span>
+      <label class="t" for="total">餐飲消費金額（含稅）</label>
+      <span class="hint" id="totalHint">請輸入菜單金額合計（含 5% 營業稅），不含服務費及小費。</span>
       <div class="input"><span>NT$</span><input id="total" type="text" inputmode="numeric" autocomplete="off" aria-describedby="totalHint" placeholder="0"></div>
+    </div>
+
+    <div class="field">
+      <label class="t" for="discount">折扣金額</label>
+      <span class="hint" id="discountHint">如 IHG 會員餐飲折扣，請輸入折扣的金額；沒有就留空。</span>
+      <div class="input"><span>NT$</span><input id="discount" type="text" inputmode="numeric" autocomplete="off" aria-describedby="discountHint" placeholder="0"></div>
     </div>
 
     <div class="actions">
@@ -220,14 +227,15 @@
       <li>請客人在結帳時出示國泰會員卡，離開餐廳後無法補登里數。</li>
       <li>確認是持卡人本人；每筆交易限一位會員累積，同桌用餐不接受分開結帳。</li>
       <li>確認這一筆不是節日推廣餐膳、其他推廣或套餐，這些消費不可併用里數。</li>
-      <li><mark>服務費、稅金及小費不計入里數；每筆交易最高累積 5,000 里。</mark></li>
+      <li>訂金、餐飲禮券不適用里數累積。</li>
+      <li><mark>折扣金額、服務費、稅金及小費不計入里數；每筆交易最高累積 5,000 里。</mark></li>
       <li>IHG® One Rewards 會員只能擇一累積 Dining Rewards 點數或亞洲萬里通里數。</li>
       <li>里數將於餐膳交易後 10 個工作天內存入會員帳戶；入點後無法取消、更正或轉換，入點前請與客人再次確認卡號。</li>
     </ol>
   </section>
 
   <footer>
-    <p>每消費 NT$30 累積 1 里，每筆上限 5,000 里。不滿 NT$30 的零頭不累積（暫定，待國泰確認）。</p>
+    <p>里數 ＝ （餐飲消費金額 − 折扣金額）÷ 1.05 ÷ 30，每筆上限 5,000 里。未稅金額與零頭的進位方式為暫定，待財務及國泰確認。</p>
     <p>此頁僅供現場試算，不會儲存任何資料；實際入點里數以 Ocard 系統及國泰確認為準。</p>
   </footer>
 </div>
@@ -236,9 +244,10 @@
   // 規則參數：條款確認後只需修改這裡
   var RATE = 30;     // 每消費 NT$30 累積 1 里
   var CAP = 5000;    // 每筆交易上限（里）
+  var TAX = 0.05;    // 營業稅 5%（含稅價 ÷ 1.05 ＝ 未稅金額）
 
   var $ = function (id) { return document.getElementById(id); };
-  var totalEl = $('total');
+  var totalEl = $('total'), discountEl = $('discount');
   var resultEl = $('result'), milesEl = $('miles'), calcEl = $('calc'), noteEl = $('note'), alertEl = $('alert');
   var fmt = new Intl.NumberFormat('en-US');
 
@@ -259,6 +268,7 @@
 
   function update() {
     var total = toNum(totalEl.value);
+    var discount = toNum(discountEl.value) || 0;
 
     alertEl.hidden = true;
     noteEl.hidden = true;
@@ -267,17 +277,30 @@
     if (total === null) {
       resultEl.classList.add('empty');
       milesEl.textContent = '0';
-      calcEl.textContent = '請輸入帳單金額';
+      calcEl.textContent = '請輸入餐飲消費金額';
       return;
     }
 
-    var base = total;
+    if (discount > total) {
+      resultEl.classList.add('empty');
+      milesEl.textContent = '0';
+      calcEl.textContent = '請檢查金額';
+      showAlert('折扣金額大於消費金額', '折扣金額不應超過餐飲消費金額，請重新確認。');
+      return;
+    }
+
+    var afterDiscount = total - discount;
+    var base = Math.round(afterDiscount / (1 + TAX));
     var raw = Math.floor(base / RATE);
     var miles = Math.min(raw, CAP);
     var rest = base - raw * RATE;
 
     milesEl.textContent = fmt.format(miles);
-    calcEl.textContent = 'NT$' + fmt.format(base) + ' ÷ ' + RATE + ' = ' + fmt.format(raw) + ' 里（零頭 NT$' + rest + ' 不累積）';
+    var lines = [];
+    if (discount > 0) { lines.push('NT$' + fmt.format(total) + ' − 折扣 NT$' + fmt.format(discount) + ' = NT$' + fmt.format(afterDiscount)); }
+    lines.push('NT$' + fmt.format(afterDiscount) + ' ÷ 1.05 = NT$' + fmt.format(base) + '（未稅）');
+    lines.push('NT$' + fmt.format(base) + ' ÷ ' + RATE + ' = ' + fmt.format(raw) + ' 里（零頭 NT$' + rest + ' 不累積）');
+    calcEl.textContent = lines.join('\n');
 
     if (raw > CAP) {
       noteEl.textContent = '已達每筆上限 ' + fmt.format(CAP) + ' 里，超出的 ' + fmt.format(raw - CAP) + ' 里不累積。';
@@ -288,9 +311,11 @@
     }
   }
 
-  totalEl.addEventListener('input', function () { formatInput(totalEl); update(); });
+  [totalEl, discountEl].forEach(function (el) {
+    el.addEventListener('input', function () { formatInput(el); update(); });
+  });
   $('reset').addEventListener('click', function () {
-    totalEl.value = '';
+    totalEl.value = ''; discountEl.value = '';
     update();
     totalEl.focus();
   });
